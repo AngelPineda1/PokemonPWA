@@ -6,15 +6,17 @@ let urls = ["/",
   "/imgs/icono-128.png",
   "/imgs/icono-512.png",
   "/imgs/pokemon.png"
-
-
 ];
 
 let cacheName = "pokemonCacheV1";
+
+
 async function precache() {
   let cache = await caches.open(cacheName);
   await cache.addAll(urls);
 }
+
+
 
 //precache
 self.addEventListener("install", function (e) {
@@ -22,33 +24,107 @@ self.addEventListener("install", function (e) {
 });
 
 self.addEventListener('fetch', event => {
-  event.respondWith(getFromCache(event.request));
+  event.respondWith(cacheFirst(event.request));
 });
 
 
-async function getFromCache(request) {
+async function cacheFirst(request) {
   try {
-    // Check if the URL uses the chrome-extension scheme or other unsupported schemes
+
     if (request.url.startsWith('chrome-extension://')) {
-      return fetch(request); // Simply fetch the request but don't cache it
+      return fetch(request);
     }
 
     let cache = await caches.open(cacheName);
     let response = await cache.match(request);
 
     if (response) {
-      return response; // Return the cached response if it exists
+      return response;
     } else {
       let respuesta = await fetch(request);
       if (respuesta && respuesta.ok) {
-        cache.put(request, respuesta.clone()); // Cache the fetched response
+        cache.put(request, respuesta.clone());
       }
       return respuesta;
     }
   } catch (error) {
     console.error("Error in getFromCache:", error);
-    // Optionally return a fallback response
+
     return new Response("Network error", { status: 500 });
   }
 }
 
+
+
+
+async function cacheOnly(request) {
+  try {
+
+    if (request.url.startsWith('chrome-extension://')) {
+      return fetch(request);
+    }
+
+    let cache = await caches.open(cacheName);
+    let response = await cache.match(request);
+
+    if (response) {
+      return response;
+    } else {
+      return new Response("No se econtro en cahce");
+    }
+  } catch (error) {
+    console.error("Error in getFromCache:", error);
+
+    return new Response("Network error", { status: 500 });
+  }
+}
+
+
+async function networkFirst(request) {
+  let cache = await caches.open(cacheName);
+
+  try {
+
+    if (request.url.startsWith('chrome-extension://')) {
+      return fetch(request);
+    }
+    let respuesta = await fetch(request);
+    cache.put(request, respuesta.clone());
+    return respuesta;
+
+  } catch (error) {
+    let response = await cache.match(request);
+
+    if (response) {
+      return response;
+    } else {
+
+      console.error(error);
+    }
+  }
+}
+
+async function staleWhileRevalidate(request) {
+  try {
+
+    if (request.url.startsWith('chrome-extension://')) {
+      return fetch(request);
+    }
+
+    let cache = await caches.open(cacheName);
+    let response = await cache.match(request);
+
+    let r = fetch(request).then(response => {
+      cache.put(request, response.clone());
+      return response;
+    })
+    return response || r;
+
+
+
+  } catch (error) {
+    console.error(error);
+
+
+  }
+}
