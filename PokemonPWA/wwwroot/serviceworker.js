@@ -54,9 +54,6 @@ async function cacheFirst(request) {
   }
 }
 
-
-
-
 async function cacheOnly(request) {
   try {
 
@@ -110,7 +107,6 @@ async function staleWhileRevalidate(request) {
     if (request.url.startsWith('chrome-extension://')) {
       return fetch(request);
     }
-
     let cache = await caches.open(cacheName);
     let response = await cache.match(request);
 
@@ -119,12 +115,48 @@ async function staleWhileRevalidate(request) {
       return response;
     })
     return response || r;
-
-
-
   } catch (error) {
     console.error(error);
+  }
+}
 
+async function staleThenRevalidate(request) {
+  try {
 
+    if (request.url.startsWith('chrome-extension://')) {
+      return fetch(request);
+    }
+    let cache = await caches.open(cacheName);
+    let response = await cache.match(request);
+    if (response) {
+
+      fetch(request).then(async (res) => {
+        let networkResponse = await fetch(request);
+        let cacheData = await response.text();
+        let networkData = await networkResponse.clone().text();
+
+        if (cacheData != networkData) {
+          cache.put(request, networkResponse.clone())
+          let channel = new BroadcastChannel("channel");
+          channel.postMessage(networkResponse.clone())
+        } else {
+
+        }
+        
+
+      });
+
+      return response.clone();
+    } else {
+      return networkFirst(request);
+    }
+
+    let r = fetch(request).then(response => {
+      cache.put(request, response.clone());
+      return response;
+    })
+    return response || r;
+  } catch (error) {
+    console.error(error);
   }
 }
