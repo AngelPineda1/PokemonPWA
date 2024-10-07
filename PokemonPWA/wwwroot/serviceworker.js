@@ -117,8 +117,10 @@ async function staleWhileRevalidate(request) {
     return response || r;
   } catch (error) {
     console.error(error);
-  }
+  }  
 }
+
+let channel = new BroadcastChannel("refreshChannel");
 
 async function staleThenRevalidate(request) {
   try {
@@ -136,10 +138,12 @@ async function staleThenRevalidate(request) {
         let networkData = await networkResponse.clone().text();
 
         if (cacheData != networkData) {
-          cache.put(request, networkResponse.clone())
-          let channel = new BroadcastChannel("channel");
-          channel.postMessage(networkResponse.clone())
-        } else {
+          cache.put(request, networkResponse.clone());
+
+          channel.postMessage({
+            Url: request.url,Data:networkData
+          });
+
 
         }
         
