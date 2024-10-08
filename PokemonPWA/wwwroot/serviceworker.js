@@ -117,7 +117,7 @@ async function staleWhileRevalidate(request) {
     return response || r;
   } catch (error) {
     console.error(error);
-  }  
+  }
 }
 
 let channel = new BroadcastChannel("refreshChannel");
@@ -141,12 +141,12 @@ async function staleThenRevalidate(request) {
           cache.put(request, networkResponse.clone());
 
           channel.postMessage({
-            Url: request.url,Data:networkData
+            Url: request.url, Data: networkData
           });
 
 
         }
-        
+
 
       });
 
@@ -163,4 +163,31 @@ async function staleThenRevalidate(request) {
   } catch (error) {
     console.error(error);
   }
+}
+
+let maxage = 24 * 60 * 60 * 1000;
+
+async function timeBasedCache(request) {
+  if (request.url.startsWith('chrome-extension://')) {
+    return fetch(request);
+  }
+  let cache = await caches.open(cacheName);
+  let cacheResponse = await cache.match(request);
+  if (cacheResponse) {
+    let fechaDescarga = cacheResponse.headers.get("fecha");
+
+  } else {
+    let networkResponse = await fetch(request);
+    let nuevoResponse = new Response(networkResponse.body, {
+
+      statusText: networkResponse.statusText,
+      status: networkResponse.status,
+      headers: networkResponse.headers,
+      type:networkResponse.type
+    });
+    nuevoResponse.headers.append("fecha", new Date().toISOString());
+    cache.put(request, nuevoResponse);
+    return networkResponse;
+  }
+
 }
