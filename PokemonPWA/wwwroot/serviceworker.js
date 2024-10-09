@@ -143,11 +143,7 @@ async function staleThenRevalidate(request) {
           channel.postMessage({
             Url: request.url, Data: networkData
           });
-
-
         }
-
-
       });
 
       return response.clone();
@@ -173,21 +169,37 @@ async function timeBasedCache(request) {
   }
   let cache = await caches.open(cacheName);
   let cacheResponse = await cache.match(request);
+
   if (cacheResponse) {
     let fechaDescarga = cacheResponse.headers.get("fecha");
+    let fecha = new Date(fechaDescarga);
+    let hoy = new Date();
+    let diferencia = hoy - fecha;
+    if (diferencia <= maxage) {
+      return cacheResponse;
+    }
 
-  } else {
-    let networkResponse = await fetch(request);
-    let nuevoResponse = new Response(networkResponse.body, {
-
-      statusText: networkResponse.statusText,
-      status: networkResponse.status,
-      headers: networkResponse.headers,
-      type:networkResponse.type
-    });
-    nuevoResponse.headers.append("fecha", new Date().toISOString());
-    cache.put(request, nuevoResponse);
-    return networkResponse;
   }
+  let networkResponse = await fetch(request);
+  let nuevoResponse = new Response(networkResponse.body, {
+
+    statusText: networkResponse.statusText,
+    status: networkResponse.status,
+    headers: networkResponse.headers,
+    type: networkResponse.type
+  });
+  nuevoResponse.headers.append("fecha", new Date().toISOString());
+  cache.put(request, nuevoResponse);
+  return networkResponse;
+}
+
+async function networkCacheRace(request) {
+  let cache = await caches.open(cacheName);
+  let promise = fetch(request).then(response => {
+    cache.put(request, response.clone());
+    return response
+  })
+  let promise2 = cache.match(request);
+  return Promise.race([promise, promise2]);
 
 }
